@@ -2,8 +2,6 @@
 
 A wiki-style chatbot for ARC Raiders powered by a local Ollama LLM, DuckDuckGo web search, and a ChromaDB RAG cache. Python/FastAPI backend + React frontend, with MLflow observability and Docker Compose.
 
-**Interview study sheet:** [docs/INTERVIEW.md](docs/INTERVIEW.md)
-
 ## Prerequisites
 
 - **Python 3.10+**
@@ -99,7 +97,6 @@ All config lives in `backend/.env` (copy from `.env.example`):
 ```
 ├── Dockerfile                   Multi-stage build (frontend + backend)
 ├── docker-compose.yml           Full stack: app + MLflow + Ollama
-├── docs/INTERVIEW.md            Interview talking points
 ├── .github/workflows/ci.yml     CI pipeline (lint backend + frontend)
 │
 ├── backend/

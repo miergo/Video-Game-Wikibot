@@ -6,6 +6,10 @@
 # commits and can leak sensitive data (like API keys in .env).
 # =============================================================================
 
+# Personal interview study notes — keep local, do not publish.
+docs/INTERVIEW.md
+INTERVIEW.md
+
 # ---------------------------------------------------------------------------
 # Python
 # ---------------------------------------------------------------------------
