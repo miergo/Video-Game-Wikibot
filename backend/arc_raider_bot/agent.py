@@ -9,7 +9,7 @@ import logging
 from typing import NamedTuple
 
 import mlflow
-from langchain_community.tools import DuckDuckGoSearchResults
+from ddgs import DDGS
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.ollama import OllamaProvider
@@ -22,6 +22,8 @@ from arc_raider_bot.knowledge_cache import KnowledgeCache
 from arc_raider_bot.tracing import init_tracing
 
 log = logging.getLogger(__name__)
+
+_MAX_SEARCH_RESULTS = 6
 
 
 # ---------------------------------------------------------------------------
@@ -37,16 +39,29 @@ class AskResult(NamedTuple):
     session_id: str
 
 
+def _web_search(query: str, max_results: int = _MAX_SEARCH_RESULTS) -> list[dict]:
+    """Run DuckDuckGo search via ddgs and normalize to snippet/title/link."""
+    with DDGS() as ddgs:
+        raw = list(ddgs.text(query, max_results=max_results))
+    return [
+        {
+            "snippet": item.get("body", ""),
+            "title": item.get("title", ""),
+            "link": item.get("href", ""),
+        }
+        for item in raw
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Lazy initialization
 #
-# All heavy objects (LLM connection, agents, search tool, knowledge cache)
+# All heavy objects (LLM connection, agents, knowledge cache)
 # are created on the first call to ask(), NOT at import time. This avoids
 # hidden side effects when someone writes "from arc_raider_bot import ask".
 # ---------------------------------------------------------------------------
 
 _language_model: OpenAIChatModel | None = None
-_search_tool: DuckDuckGoSearchResults | None = None
 _main_agent: Agent | None = None
 _validator_agent: Agent | None = None
 _knowledge_cache: KnowledgeCache | None = None
@@ -55,7 +70,7 @@ _initialized = False
 
 def _ensure_initialized() -> None:
     """Create all heavy objects once on first use."""
-    global _language_model, _search_tool, _main_agent, _validator_agent
+    global _language_model, _main_agent, _validator_agent
     global _knowledge_cache, _initialized
 
     if _initialized:
@@ -67,8 +82,6 @@ def _ensure_initialized() -> None:
         model_name=OLLAMA_MODEL,
         provider=OllamaProvider(base_url=OLLAMA_BASE_URL),
     )
-
-    _search_tool = DuckDuckGoSearchResults(max_results=6, output_format="list")
 
     _main_agent = Agent(
         _language_model,
@@ -93,13 +106,12 @@ def _ensure_initialized() -> None:
             span.set_inputs({"query": query})
             if VERBOSE:
                 print(f"  [tool] websearch({query!r})")
-            results = _search_tool.invoke(query)
+            results = _web_search(query)
             if VERBOSE:
                 print(f"  [tool] got {len(results)} results")
-            output = json.dumps(results, ensure_ascii=False) if isinstance(results, list) else str(results)
-            result_count = len(results) if isinstance(results, list) else 0
-            span.set_outputs({"result_count": result_count})
-            span.set_attribute("result_count", result_count)
+            output = json.dumps(results, ensure_ascii=False)
+            span.set_outputs({"result_count": len(results)})
+            span.set_attribute("result_count", len(results))
             return output
 
     _validator_agent = Agent(

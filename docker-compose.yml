@@ -20,6 +20,10 @@
 #   Open http://localhost:8001 for the chat UI
 #   Open http://localhost:5001 for the MLflow dashboard
 #
+# GPU (optional):
+#   Default runs Ollama on CPU so machines without NVIDIA still work.
+#   To enable GPU, uncomment the `deploy:` block under the ollama service.
+#
 # WHY DOCKER COMPOSE?
 #   Without it you'd need to manually start 3 processes in 3 terminals,
 #   configure network addresses between them, and manage their lifecycle.
@@ -81,23 +85,25 @@ services:
     command: ["bash", "-c", "pip install --quiet mlflow && mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root /mlflow/artifacts --allowed-hosts '*'"]
 
   # ---------------------------------------------------------------------------
-  # ollama — Local LLM inference server
+  # ollama — Local LLM inference server (CPU by default)
   # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     ports:
       - "11435:11434"
     volumes:
       # Persist downloaded models so they survive container restarts.
       # Without this, you'd have to re-pull llama3.1:8b every time.
       - ollama-data:/root/.ollama
+    # Uncomment the block below for NVIDIA GPU acceleration.
+    # Requires the NVIDIA Container Toolkit on the host.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
 # Named volumes — Docker manages these on disk. They persist between
 # `docker compose down` and `docker compose up`. To fully wipe them,
